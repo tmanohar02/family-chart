@@ -1,0 +1,13 @@
+{
+  "kdf": {
+    "name": "PBKDF2",
+    "hash": "SHA-256",
+    "iterations": 150000,
+    "salt": "REPLACE_ME_BASE64_SALT"
+  },
+  "cipher": {
+    "name": "AES-GCM",
+    "iv": "REPLACE_ME_BASE64_IV"
+  },
+  "data": "REPLACE_ME_BASE64_CIPHERTEXT"
+}

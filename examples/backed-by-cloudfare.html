@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family Chart - Cloudflare Backed</title>
+  <link rel="stylesheet" href="https://unpkg.com/family-chart@latest/dist/styles/family-chart.css">
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --ink: #1b1b1b;
+      --muted: #6b6b6b;
+      --card: #ffffff;
+      --line: rgba(30, 30, 30, 0.18);
+      --line-strong: rgba(30, 30, 30, 0.45);
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 70% -20%, #fffdf8 0%, var(--bg) 55%, #efe9e1 100%);
+      color: var(--ink);
+    }
+    #FamilyChart {
+      width: 100%;
+      height: 100vh;
+    }
+    .f3 .link {
+      stroke: var(--line) !important;
+      stroke-width: 2px !important;
+      opacity: 1 !important;
+    }
+    .f3 .link.f3-path-to-main {
+      stroke: var(--line-strong) !important;
+      stroke-width: 3px !important;
+    }
+    .f3 .card-inner {
+      background: var(--card);
+      border-radius: 14px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+    }
+    .f3 .card-main .card-inner {
+      outline: 3px solid rgba(20, 20, 20, 0.85);
+      border-color: #111;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    }
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-weight: 600;
+      color: white;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+    }
+    .avatar.male { background: linear-gradient(160deg, #2d8bd0 0%, #1f5b85 100%); }
+    .avatar.female { background: linear-gradient(160deg, #d2798b 0%, #9e4f61 100%); }
+    .avatar.neutral { background: linear-gradient(160deg, #9a9a9a 0%, #6f6f6f 100%); }
+    .card-name {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .card-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .card-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-left: 6px;
+      background: rgba(30, 30, 30, 0.08);
+      color: #333;
+    }
+    .unlock {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(15, 15, 15, 0.35);
+      backdrop-filter: blur(6px);
+      z-index: 10;
+    }
+    .unlock-card {
+      width: min(440px, 90vw);
+      background: #fff;
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+      border: 1px solid rgba(0,0,0,0.08);
+      text-align: left;
+    }
+    .unlock-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .unlock-subtitle {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 14px;
+    }
+    .unlock-input {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    .unlock-btn {
+      width: 100%;
+      background: #1f5b85;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .unlock-error {
+      color: #b3261e;
+      font-size: 12px;
+      margin-top: 8px;
+      min-height: 16px;
+      white-space: pre-wrap;
+    }
+    .top-actions {
+      position: fixed;
+      right: 14px;
+      top: 14px;
+      z-index: 4;
+    }
+    .top-actions button {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-weight: 600;
+      background: #1f5b85;
+      color: #fff;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    .edit-panel {
+      position: fixed;
+      right: 14px;
+      top: 56px;
+      width: min(420px, calc(100vw - 28px));
+      max-height: calc(100vh - 70px);
+      overflow: auto;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 14px;
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.14);
+      padding: 12px;
+      z-index: 8;
+      backdrop-filter: blur(3px);
+      display: none;
+    }
+    .edit-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .edit-label {
+      display: block;
+      font-size: 11px;
+      margin: 8px 0 4px;
+      color: #444;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .edit-input, .edit-textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d2d2d2;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #fff;
+    }
+    .edit-textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+    .edit-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .edit-btn {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #fff;
+      background: #1f5b85;
+    }
+    .edit-btn.secondary { background: #4a4a4a; }
+    .edit-btn.ghost { background: #777; }
+    .edit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .edit-status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #2c2c2c;
+      min-height: 16px;
+    }
+    .edit-status.error { color: #b3261e; }
+    .edit-output {
+      margin-top: 8px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      background: #f8f8f8;
+      padding: 8px;
+      font-size: 12px;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      max-height: 240px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+  </style>
+</head>
+<body>
+  <div id="FamilyChart" class="f3"></div>
+  <div class="top-actions">
+    <button id="refresh-btn" style="display:none;">Refresh from Worker</button>
+    <button id="edit-toggle-btn" style="display:none;">Edit</button>
+  </div>
+  <aside id="edit-panel" class="edit-panel">
+    <div class="edit-title">Edit Data (Worker API)</div>
+    <label class="edit-label" for="edit-instruction">Instruction</label>
+    <textarea id="edit-instruction" class="edit-textarea" placeholder="Example: Add person X as child of Y and Z"></textarea>
+    <div class="edit-actions">
+      <button id="btn-propose" class="edit-btn">Propose</button>
+      <button id="btn-preview" class="edit-btn secondary" disabled>Preview</button>
+      <button id="btn-apply" class="edit-btn ghost" disabled>Apply</button>
+      <button id="btn-deploy" class="edit-btn secondary">Deploy Latest</button>
+    </div>
+    <label class="edit-label" for="auto-deploy">
+      <input id="auto-deploy" type="checkbox" checked />
+      Auto deploy after apply
+    </label>
+    <label class="edit-label" for="commit-message">Commit Message (optional)</label>
+    <input id="commit-message" class="edit-input" type="text" placeholder="data: apply natural-language update" />
+    <div id="edit-status" class="edit-status"></div>
+    <div id="edit-output" class="edit-output">No proposal yet.</div>
+  </div>
+  <div id="unlock" class="unlock">
+    <div class="unlock-card">
+      <div class="unlock-title">Unlock Cloudflare-Backed Tree</div>
+      <div class="unlock-subtitle">Enter passphrase to decrypt API token and fetch live data from Worker.</div>
+      <input id="worker-url" class="unlock-input" type="text" value="https://family-tree-worker.tmanohar02.workers.dev" />
+      <input id="passphrase" class="unlock-input" type="password" placeholder="Passphrase" />
+      <button id="unlock-btn" class="unlock-btn">Unlock & Load</button>
+      <div id="unlock-error" class="unlock-error"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
+  <script src="https://unpkg.com/family-chart@latest/dist/family-chart.min.js"></script>
+  <script type="module">
+    const unlockEl = document.getElementById('unlock');
+    const workerUrlInput = document.getElementById('worker-url');
+    const passInput = document.getElementById('passphrase');
+    const unlockBtn = document.getElementById('unlock-btn');
+    const errorEl = document.getElementById('unlock-error');
+    const refreshBtn = document.getElementById('refresh-btn');
+    const editToggleBtn = document.getElementById('edit-toggle-btn');
+    const editPanel = document.getElementById('edit-panel');
+    const instructionInput = document.getElementById('edit-instruction');
+    const commitMessageInput = document.getElementById('commit-message');
+    const statusEl = document.getElementById('edit-status');
+    const outputEl = document.getElementById('edit-output');
+    const proposeBtn = document.getElementById('btn-propose');
+    const previewBtn = document.getElementById('btn-preview');
+    const applyBtn = document.getElementById('btn-apply');
+    const deployBtn = document.getElementById('btn-deploy');
+    const autoDeployInput = document.getElementById('auto-deploy');
+
+    let token = '';
+    let latestProposal = null;
+
+    unlockBtn.addEventListener('click', async () => {
+      errorEl.textContent = '';
+      const passphrase = passInput.value.trim();
+      if (!passphrase) {
+        errorEl.textContent = 'Passphrase is required.';
+        return;
+      }
+      try {
+        token = await decryptApiToken(passphrase);
+        await refreshChart();
+        unlockEl.style.display = 'none';
+        refreshBtn.style.display = 'inline-block';
+        editToggleBtn.style.display = 'inline-block';
+      } catch (err) {
+        errorEl.textContent = err.message || 'Unlock failed.';
+      }
+    });
+
+    refreshBtn.addEventListener('click', async () => {
+      try {
+        await refreshChart();
+      } catch (err) {
+        alert(err.message || 'Refresh failed');
+      }
+    });
+    editToggleBtn.addEventListener('click', () => {
+      editPanel.style.display = editPanel.style.display === 'none' || !editPanel.style.display ? 'block' : 'none';
+    });
+    proposeBtn.addEventListener('click', () => runPropose());
+    previewBtn.addEventListener('click', () => runPreview());
+    applyBtn.addEventListener('click', () => runApply());
+    deployBtn.addEventListener('click', () => runDeployLatest());
+
+    async function decryptApiToken(passphrase) {
+      const res = await fetch('./api-token.enc.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Missing ./api-token.enc.json');
+      const payload = await res.json();
+      if (!payload?.kdf?.salt || !payload?.cipher?.iv || !payload?.data) {
+        throw new Error('api-token.enc.json has invalid format.');
+      }
+
+      const salt = b64ToBytes(payload.kdf.salt);
+      const iv = b64ToBytes(payload.cipher.iv);
+      const dataBytes = b64ToBytes(payload.data);
+
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(passphrase),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveKey']
+      );
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt,
+          iterations: payload.kdf.iterations,
+          hash: payload.kdf.hash
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+      const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, dataBytes);
+      const out = new TextDecoder().decode(plaintext).trim();
+      if (!out || out.includes('REPLACE_ME')) {
+        throw new Error('api-token.enc.json contains placeholder token. Generate it with your real API token.');
+      }
+      return out;
+    }
+
+    async function refreshChart() {
+      const worker = workerUrlInput.value.trim().replace(/\/+$/, '');
+      if (!/^https?:\/\//.test(worker)) throw new Error('Worker URL must start with http:// or https://');
+      if (!token) throw new Error('Token not loaded.');
+
+      const res = await fetch(`${worker}/api/tree/chart`, {
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || `Worker request failed (${res.status})`);
+      }
+      if (!Array.isArray(data.data)) {
+        throw new Error('Worker returned invalid chart payload.');
+      }
+      initChart(data.data);
+    }
+
+    async function workerPost(path, body) {
+      const worker = workerUrlInput.value.trim().replace(/\/+$/, '');
+      if (!/^https?:\/\//.test(worker)) throw new Error('Worker URL must start with http:// or https://');
+      if (!token) throw new Error('Token not loaded.');
+
+      const res = await fetch(`${worker}${path}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || `Worker request failed (${res.status})`);
+      }
+      return data;
+    }
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message || '';
+      statusEl.classList.toggle('error', Boolean(isError));
+    }
+
+    function setOutput(value) {
+      outputEl.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    }
+
+    function normalizeProposalResponse(data) {
+      if (data?.proposal && typeof data.proposal === 'object') return data.proposal;
+      if (data && typeof data === 'object' && Array.isArray(data.operations)) return data;
+      return null;
+    }
+
+    function normalizeOperations(operations) {
+      if (!Array.isArray(operations)) return [];
+      return operations.map((raw) => {
+        const op = { ...raw };
+        if (!op.op && op.operation) op.op = op.operation;
+        if (!op.op && op.relation_type && op.person1_id && op.person2_id) op.op = 'add_relationship';
+        if (op.op === 'add_relationship' && !op.relationship) {
+          op.relationship = {
+            relation_id: op.relation_id,
+            person1_id: op.person1_id,
+            person2_id: op.person2_id,
+            relation_type: op.relation_type,
+            relation_date: op.relation_date,
+            end_date: op.end_date
+          };
+        }
+        if (!op.op && op.full_name) op.op = 'add_person';
+        if (op.op === 'add_person' && !op.person) {
+          op.person = {
+            person_id: op.person_id,
+            full_name: op.full_name,
+            birth_year: op.birth_year,
+            gender: op.gender,
+            child_order: op.child_order
+          };
+        }
+        return op;
+      });
+    }
+
+    async function runPropose() {
+      const instruction = instructionInput.value.trim();
+      if (!instruction) {
+        setStatus('Instruction is required.', true);
+        return;
+      }
+      try {
+        setStatus('Generating proposal...');
+        proposeBtn.disabled = true;
+        previewBtn.disabled = true;
+        applyBtn.disabled = true;
+        const data = await workerPost('/api/changes/propose', { instruction });
+        latestProposal = normalizeProposalResponse(data);
+        if (!latestProposal) throw new Error('Worker response did not include a valid proposal.');
+        setOutput(latestProposal);
+        setStatus('Proposal ready.');
+        previewBtn.disabled = false;
+        applyBtn.disabled = false;
+      } catch (err) {
+        latestProposal = null;
+        setOutput('No proposal available.');
+        setStatus(err.message || 'Failed to propose changes.', true);
+      } finally {
+        proposeBtn.disabled = false;
+      }
+    }
+
+    async function runPreview() {
+      if (!latestProposal?.operations) {
+        setStatus('Run Propose first.', true);
+        return;
+      }
+      try {
+        setStatus('Generating preview...');
+        previewBtn.disabled = true;
+        const operations = normalizeOperations(latestProposal.operations);
+        const data = await workerPost('/api/changes/preview', {
+          operations,
+          assumptions: latestProposal.assumptions || []
+        });
+        setOutput({
+          preview: data.delta,
+          warnings: data.warnings || [],
+          assumptions: latestProposal.assumptions || [],
+          questions: latestProposal.questions || []
+        });
+        setStatus('Preview ready.');
+      } catch (err) {
+        setStatus(err.message || 'Preview failed.', true);
+      } finally {
+        previewBtn.disabled = false;
+      }
+    }
+
+    async function runApply() {
+      if (!latestProposal?.operations) {
+        setStatus('Run Propose first.', true);
+        return;
+      }
+      if (!confirm('Apply these changes and commit to GitHub?')) return;
+
+      try {
+        setStatus('Applying changes...');
+        applyBtn.disabled = true;
+        const commitMessage = commitMessageInput.value.trim();
+        const operations = normalizeOperations(latestProposal.operations);
+        const data = await workerPost('/api/changes/apply', {
+          operations,
+          commit_message: commitMessage || undefined,
+          deploy: Boolean(autoDeployInput.checked)
+        });
+        setOutput(data);
+        const pub = data.publish || {};
+        if (pub.triggered) {
+          setStatus(`Applied. Commit: ${data.commit_sha}. Deploy triggered.`);
+        } else if (pub.requested) {
+          setStatus(`Applied. Commit: ${data.commit_sha}. Deploy skipped: ${pub.skipped_reason || 'not configured'}.`);
+        } else {
+          setStatus(`Applied. Commit: ${data.commit_sha}.`);
+        }
+      } catch (err) {
+        setStatus(err.message || 'Apply failed.', true);
+      } finally {
+        applyBtn.disabled = false;
+      }
+    }
+
+    async function runDeployLatest() {
+      try {
+        setStatus('Triggering deploy...');
+        deployBtn.disabled = true;
+        const data = await workerPost('/api/publish', {});
+        setOutput(data);
+        setStatus(`Deploy triggered for commit ${data.commit_sha}.`);
+      } catch (err) {
+        setStatus(err.message || 'Deploy failed.', true);
+      } finally {
+        deployBtn.disabled = false;
+      }
+    }
+
+    function b64ToBytes(b64) {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    function initChart(data) {
+      const chartRoot = document.getElementById('FamilyChart');
+      chartRoot.innerHTML = '';
+      const chart = window.f3.createChart('#FamilyChart', data);
+      chart
+        .setCardXSpacing(200)
+        .setCardYSpacing(140)
+        .setDuplicateBranchToggle(true)
+        .setSortChildrenFunction((a, b) => {
+          const ao = Number(a.data.child_order);
+          const bo = Number(b.data.child_order);
+          const aHas = Number.isFinite(ao);
+          const bHas = Number.isFinite(bo);
+          if (aHas && bHas && ao !== bo) return ao - bo;
+          if (aHas && !bHas) return -1;
+          if (!aHas && bHas) return 1;
+          const an = (a.data.name || '').toString();
+          const bn = (b.data.name || '').toString();
+          return an.localeCompare(bn);
+        });
+
+      chart.setCardHtml()
+        .setCardDim({ w: 200, h: 82, height_auto: true })
+        .setCardInnerHtmlCreator((d) => {
+          const name = d.data.data.name || 'Unknown';
+          const birth = d.data.data.birth_year || 'tbd';
+          const gender = d.data.data.gender || 'U';
+          const initials = name.split(' ').filter(Boolean).map(s => s[0]).join('').slice(0, 2).toUpperCase();
+          const genderClass = gender === 'M' ? 'male' : gender === 'F' ? 'female' : 'neutral';
+          const badge = d.data.main ? '<span class="card-badge">You</span>' : '';
+          return `
+            <div class="card-inner">
+              <div class="avatar ${genderClass}">${initials || '?'}</div>
+              <div>
+                <div class="card-name">${name}${badge}</div>
+                ${birth && birth.toLowerCase() !== 'tbd' ? `<div class="card-meta">Born: ${birth}</div>` : ''}
+              </div>
+            </div>
+          `;
+        });
+
+      chart.updateTree({ initial: true, tree_position: 'main_to_middle', scale: 1.12 });
+      window.f3.handlers.zoomTo(chart.svg, 1.12);
+    }
+  </script>
+</body>
+</html>

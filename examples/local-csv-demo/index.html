@@ -11,9 +11,6 @@
       --ink: #1b1b1b;
       --muted: #6b6b6b;
       --card: #ffffff;
-      --male: #2a7bb8;
-      --female: #c4637a;
-      --neutral: #8b8b8b;
       --line: rgba(30, 30, 30, 0.18);
       --line-strong: rgba(30, 30, 30, 0.45);
     }
@@ -37,9 +34,6 @@
     .f3 .link.f3-path-to-main {
       stroke: var(--line-strong) !important;
       stroke-width: 3px !important;
-    }
-    .f3 .card {
-      color: var(--ink);
     }
     .f3 .card-inner {
       background: var(--card);
@@ -128,6 +122,7 @@
       padding: 10px 12px;
       font-size: 14px;
       margin-bottom: 10px;
+      box-sizing: border-box;
     }
     .unlock-btn {
       width: 100%;
@@ -140,7 +135,6 @@
       font-weight: 600;
       cursor: pointer;
     }
-    .unlock-btn:hover { filter: brightness(1.05); }
     .unlock-error {
       color: #b3261e;
       font-size: 12px;
@@ -233,8 +227,25 @@
     }
 
     function initChart(data) {
+      const chartRoot = document.getElementById('FamilyChart');
+      chartRoot.innerHTML = '';
       const chart = window.f3.createChart('#FamilyChart', data);
-      chart.setCardXSpacing(200).setCardYSpacing(140).setDuplicateBranchToggle(true);
+      chart
+        .setCardXSpacing(200)
+        .setCardYSpacing(140)
+        .setDuplicateBranchToggle(true)
+        .setSortChildrenFunction((a, b) => {
+          const ao = Number(a.data.child_order);
+          const bo = Number(b.data.child_order);
+          const aHas = Number.isFinite(ao);
+          const bHas = Number.isFinite(bo);
+          if (aHas && bHas && ao !== bo) return ao - bo;
+          if (aHas && !bHas) return -1;
+          if (!aHas && bHas) return 1;
+          const an = (a.data.name || '').toString();
+          const bn = (b.data.name || '').toString();
+          return an.localeCompare(bn);
+        });
 
       chart.setCardHtml()
         .setCardDim({ w: 200, h: 82, height_auto: true })
@@ -244,13 +255,13 @@
           const gender = d.data.data.gender || 'U';
           const initials = name.split(' ').filter(Boolean).map(s => s[0]).join('').slice(0, 2).toUpperCase();
           const genderClass = gender === 'M' ? 'male' : gender === 'F' ? 'female' : 'neutral';
-          const badge = d.data.main ? '<span class=\"card-badge\">You</span>' : '';
+          const badge = d.data.main ? '<span class="card-badge">You</span>' : '';
           return `
-            <div class=\"card-inner\">
-              <div class=\"avatar ${genderClass}\">${initials || '?'}</div>
+            <div class="card-inner">
+              <div class="avatar ${genderClass}">${initials || '?'}</div>
               <div>
-                <div class=\"card-name\">${name}${badge}</div>
-                <div class=\"card-meta\">Born: ${birth}</div>
+                <div class="card-name">${name}${badge}</div>
+                ${birth && birth.toLowerCase() !== 'tbd' ? `<div class="card-meta">Born: ${birth}</div>` : ''}
               </div>
             </div>
           `;
